@@ -230,4 +230,8 @@ elif menu == "Evolução Cargas":
                 ORDER BY hc.data_treino ASC
             """, (id_sel,))
             
-            dados_graf
+            dados_graf = cursor.fetchall()
+            if dados_graf:
+                datas = [d[0] for d in dados_graf]
+                cargas = [d[1] for d in dados_graf]
+                st.line_chart(dict(zip(datas, cargas)))
