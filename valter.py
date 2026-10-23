@@ -5,8 +5,6 @@ from datetime import date
 
 # --- GARANTIR CRIAÇÃO E POPULAÇÃO AUTOMÁTICA DA BASE DE DADOS ---
 db_path = 'meu_treino_smartfit.db'
-db_exists = os.path.exists(db_path)
-
 conn = sqlite3.connect(db_path, check_same_thread=False)
 cursor = conn.cursor()
 
@@ -52,14 +50,14 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS Evolucao_Corporal (
                     peito REAL, 
                     barriga REAL)''')
 
-# Inserir dados iniciais se a base de dados for nova
+# Inserir dados iniciais completos se a base estiver vazia
 cursor.execute("SELECT COUNT(*) FROM Exercicios")
 if cursor.fetchone()[0] == 0:
-    # Inserir Treinos básicos
+    # 1. Inserir Treinos
     cursor.executemany("INSERT OR IGNORE INTO Treinos (id_treino, nome_treino) VALUES (?, ?)", 
                        [(1, "Treino A"), (2, "Treino B"), (3, "Treino C")])
 
-    # Inserir Exercícios
+    # 2. Inserir Exercícios (Peito, Costas, Pernas, Ombros, Braços)
     exercicios = [
         ("Supino Reto", "Halteres / Barra", "Peito"),
         ("Supino Inclinado", "Halteres", "Peito"),
@@ -69,25 +67,37 @@ if cursor.fetchone()[0] == 0:
         ("Rosca Direta", "Halteres", "Braços"),
         ("Leg Press 45º", "Máquina", "Pernas"),
         ("Cadeira Extensora", "Máquina", "Pernas"),
-        ("Cadeira Flexora", "Máquina", "Pernas")
+        ("Cadeira Flexora", "Máquina", "Pernas"),
+        ("Desenvolvimento", "Halteres", "Ombros"),
+        ("Elevação Lateral", "Halteres", "Ombros")
     ]
     cursor.executemany("INSERT OR IGNORE INTO Exercicios (nome, equipamento, zona_academia) VALUES (?, ?, ?)", exercicios)
 
-    # Associar Exercícios ao Treino A (id_treino = 1)
-    treino_a = [
-        (1, 1, 1), # Supino Reto
-        (1, 2, 2), # Supino Inclinado
-        (1, 3, 3)  # Tríceps Corda
-    ]
-    cursor.executemany("INSERT OR IGNORE INTO Treino_Exercicios (id_treino, id_exercicio, ordem_execucao) VALUES (?, ?, ?)", treino_a)
+    # 3. Associar Exercícios aos Treinos (A, B, C)
+    # Treino A (ex: Peito e Tríceps)
+    rel_a = [(1, 1, 1), (1, 2, 2), (1, 3, 3)]
+    cursor.executemany("INSERT OR IGNORE INTO Treino_Exercicios (id_treino, id_exercicio, ordem_execucao) VALUES (?, ?, ?)", rel_a)
 
-    # Metas de Séries para o Supino Reto (id_treino_exercicio = 1)
-    metas_supino = [
-        (1, 1, '12', 'Aquecimento'),
-        (1, 2, '10', 'Moderado'),
-        (1, 3, '8', 'Pesado')
-    ]
-    cursor.executemany("INSERT OR IGNORE INTO Metas_Series (id_treino_exercicio, numero_serie, repeticoes_alvo, nota_carga) VALUES (?, ?, ?, ?)", metas_supino)
+    # Treino B (ex: Costas e Bíceps)
+    rel_b = [(2, 4, 1), (2, 5, 2), (2, 6, 3)]
+    cursor.executemany("INSERT OR IGNORE INTO Treino_Exercicios (id_treino, id_exercicio, ordem_execucao) VALUES (?, ?, ?)", rel_b)
+
+    # Treino C (ex: Pernas e Ombros)
+    rel_c = [(3, 7, 1), (3, 8, 2), (3, 9, 3), (3, 10, 4), (3, 11, 5)]
+    cursor.executemany("INSERT OR IGNORE INTO Treino_Exercicios (id_treino, id_exercicio, ordem_execucao) VALUES (?, ?, ?)", rel_c)
+
+    # 4. Criar Metas de Séries padrão para todos os exercícios associados
+    cursor.execute("SELECT id_treino_exercicio FROM Treino_Exercicios")
+    todos_tes = cursor.fetchall()
+    for te in todos_tes:
+        id_te = te[0]
+        # Padrão de 3 séries em pirâmide para cada exercício
+        metas_padrao = [
+            (id_te, 1, '12', 'Aquecimento / Leve'),
+            (id_te, 2, '10', 'Moderado'),
+            (id_te, 3, '8', 'Pesado')
+        ]
+        cursor.executemany("INSERT OR IGNORE INTO Metas_Series (id_treino_exercicio, numero_serie, repeticoes_alvo, nota_carga) VALUES (?, ?, ?, ?)", metas_padrao)
 
 conn.commit()
 
