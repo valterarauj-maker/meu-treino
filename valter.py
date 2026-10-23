@@ -1,7 +1,7 @@
 import streamlit as st
 import sqlite3
 import os
-from datetime import date
+from datetime import date, datetime
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -17,12 +17,12 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- GARANTIR CRIAÇÃO E POPULAÇÃO AUTOMÁTICA DA BASE DE DADOS ---
+# --- CONEXÃO E BASE DE DADOS ---
 db_path = 'meu_treino_smartfit.db'
 conn = sqlite3.connect(db_path, check_same_thread=False)
 cursor = conn.cursor()
 
-# Criar tabelas caso não existam
+# Criar tabelas fundamentais
 cursor.execute('''CREATE TABLE IF NOT EXISTS Treinos (
                     id_treino INTEGER PRIMARY KEY AUTOINCREMENT, 
                     nome_treino TEXT)''')
@@ -64,8 +64,8 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS Evolucao_Corporal (
                     peito REAL, 
                     barriga REAL)''')
 
-# Inserir dados iniciais completos se a base estiver vazia
-cursor.execute("SELECT COUNT(*) FROM Exercicios")
+# Popular dados iniciais se a tabela de treinos estiver vazia
+cursor.execute("SELECT COUNT(*) FROM Treinos")
 if cursor.fetchone()[0] == 0:
     cursor.executemany("INSERT OR IGNORE INTO Treinos (id_treino, nome_treino) VALUES (?, ?)", 
                        [(1, "Treino A"), (2, "Treino B"), (3, "Treino C")])
@@ -85,6 +85,7 @@ if cursor.fetchone()[0] == 0:
     ]
     cursor.executemany("INSERT OR IGNORE INTO Exercicios (nome, equipamento, zona_academia) VALUES (?, ?, ?)", exercicios)
 
+    # Associações A, B e C
     rel_a = [(1, 1, 1), (1, 2, 2), (1, 3, 3)]
     cursor.executemany("INSERT OR IGNORE INTO Treino_Exercicios (id_treino, id_exercicio, ordem_execucao) VALUES (?, ?, ?)", rel_a)
 
@@ -107,16 +108,32 @@ if cursor.fetchone()[0] == 0:
 
 conn.commit()
 
-# --- MENU LATERAL (NAVEGAÇÃO) ---
+# --- ALERTA BIMESTRAL (60 dias) ---
+exibir_alerta_rotacao = False
+try:
+    cursor.execute("SELECT MIN(data_treino) FROM Historico_Cargas")
+    row_data = cursor.fetchone()
+    if row_data and row_data[0]:
+        primeira_data = datetime.strptime(row_data[0], "%Y-%m-%d").date()
+        if (date.today() - primeira_data).days >= 60:
+            exibir_alerta_rotacao = True
+except Exception:
+    pass
+
+# --- BARRA LATERAL (MENU) ---
 st.sidebar.title("💪 Smart Fit - Valter")
 menu = st.sidebar.radio("Escolha a seção:", ["Treino A", "Treino B", "Treino C", "Evolução Cargas", "Evolução Corporal"])
 
-# --- LÓGICA DE EXIBIÇÃO DOS TREINOS ---
+# --- EXIBIÇÃO DOS TREINOS (A, B, C) ---
 if menu.startswith("Treino"):
     mapa_ids = {"Treino A": 1, "Treino B": 2, "Treino C": 3}
     id_treino_atual = mapa_ids.get(menu, 1)
     
     st.title(f"🔥 {menu}")
+    
+    if exibir_alerta_rotacao:
+        st.warning("⚠️ Atenção: Seu treino completou 60 dias! Hora de trocar a seleção de exercícios.")
+        
     st.markdown("🏃 **Aquecimento:** 5 min de caminhada")
     st.write("---")
     
@@ -200,7 +217,7 @@ elif menu == "Evolução Corporal":
     registros = cursor.fetchall()
     for reg in registros:
         dt, p, cin, bra, per, pei, bar = reg
-        st.info(f"📅 **Data:** {dt} | **Peso:** {p}kg | **Cintura:** {cin}cm | **Braço:** {bra}cm | **Perna:** {per}cm | **Peito:** {pei}cm | **Barriga:** {bar}cm")
+        st.info(f"📅 **Data:** {dt} | **Peso:** {p}kg | **Cintura:** {cin}cm | **Braço:** {bra}cm | **Perna:** {per}cm | **Peito:** {pei or 0}cm | **Barriga:** {bar or 0}cm")
 
 # --- EVOLUÇÃO DE CARGAS ---
 elif menu == "Evolução Cargas":
