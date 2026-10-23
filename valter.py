@@ -18,7 +18,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- CONEXÃO E BASE DE DADOS ---
-db_path = 'meu_treino_smartfit_v2.db''
+db_path = 'meu_treino_smartfit_v2.db'
 conn = sqlite3.connect(db_path, check_same_thread=False)
 cursor = conn.cursor()
 
