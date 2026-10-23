@@ -67,11 +67,9 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS Evolucao_Corporal (
 # Inserir dados iniciais completos se a base estiver vazia
 cursor.execute("SELECT COUNT(*) FROM Exercicios")
 if cursor.fetchone()[0] == 0:
-    # 1. Inserir Treinos
     cursor.executemany("INSERT OR IGNORE INTO Treinos (id_treino, nome_treino) VALUES (?, ?)", 
                        [(1, "Treino A"), (2, "Treino B"), (3, "Treino C")])
 
-    # 2. Inserir Exercícios completos
     exercicios = [
         ("Supino Reto", "Halteres / Barra", "Peito"),
         ("Supino Inclinado", "Halteres", "Peito"),
@@ -87,7 +85,6 @@ if cursor.fetchone()[0] == 0:
     ]
     cursor.executemany("INSERT OR IGNORE INTO Exercicios (nome, equipamento, zona_academia) VALUES (?, ?, ?)", exercicios)
 
-    # 3. Associar Exercícios aos Treinos (A, B, C)
     rel_a = [(1, 1, 1), (1, 2, 2), (1, 3, 3)]
     cursor.executemany("INSERT OR IGNORE INTO Treino_Exercicios (id_treino, id_exercicio, ordem_execucao) VALUES (?, ?, ?)", rel_a)
 
@@ -97,7 +94,6 @@ if cursor.fetchone()[0] == 0:
     rel_c = [(3, 7, 1), (3, 8, 2), (3, 9, 3), (3, 10, 4), (3, 11, 5)]
     cursor.executemany("INSERT OR IGNORE INTO Treino_Exercicios (id_treino, id_exercicio, ordem_execucao) VALUES (?, ?, ?)", rel_c)
 
-    # 4. Criar Metas de Séries padrão
     cursor.execute("SELECT id_treino_exercicio FROM Treino_Exercicios")
     todos_tes = cursor.fetchall()
     for te in todos_tes:
