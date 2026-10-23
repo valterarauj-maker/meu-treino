@@ -1,4 +1,52 @@
-import streamlit as st
+import sqlite3
+import os
+
+# Garantir que a base de dados é criada e populada automaticamente se não existir
+db_path = 'meu_treino_smartfit.db'
+if not os.path.exists(db_path):
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    # Criar tabelas básicas caso necessário
+    cursor.execute('''CREATE TABLE IF NOT EXISTS Exercicios (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        nome TEXT,
+                        equipamento TEXT,
+                        zona_academia TEXT)''')
+                        
+    cursor.execute('''CREATE TABLE IF NOT EXISTS Treino_Exercicios (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        id_treino INTEGER,
+                        id_exercicio INTEGER,
+                        ordem_execucao INTEGER)''')
+                        
+    cursor.execute('''CREATE TABLE IF NOT EXISTS Metas_Series (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        id_treino_exercicio INTEGER,
+                        numero_serie INTEGER,
+                        repeticoes_alvo TEXT,
+                        nota_carga TEXT)''')
+
+    # Inserir dados iniciais
+    exercicios = [
+        ("Supino Reto", "Halteres / Barra", "Peito"),
+        ("Supino Inclinado", "Halteres", "Peito"),
+        ("Tríceps Corda", "Polia", "Braços"),
+        ("Puxada Alta", "Polia", "Costas"),
+        ("Remada Baixa", "Polia", "Costas"),
+        ("Rosca Direta", "Halteres", "Braços"),
+        ("Leg Press 45º", "Máquina", "Pernas"),
+        ("Cadeira Extensora", "Máquina", "Pernas"),
+        ("Cadeira Flexora", "Máquina", "Pernas")
+    ]
+    cursor.executemany("INSERT OR IGNORE INTO Exercicios (nome, equipamento, zona_academia) VALUES (?, ?, ?)", exercicios)
+    
+    # Associar ao Treino A
+    treino_a = [(1, 1, 1), (1, 2, 2), (1, 3, 3)]
+    cursor.executemany("INSERT OR IGNORE INTO Treino_Exercicios (id_treino, id_exercicio, ordem_execucao) VALUES (?, ?, ?)", treino_a)
+    
+    conn.commit()
+    conn.close()import streamlit as st
 import sqlite3
 from datetime import date, datetime
 
