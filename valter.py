@@ -17,8 +17,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- CONEXÃO E BASE DE DADOS ---
-db_path = 'meu_treino_smartfit_v2.db'
+# --- CONEXÃO E BASE DE DADOS (Atualizada para v3) ---
+db_path = 'meu_treino_smartfit_v3.db'
 conn = sqlite3.connect(db_path, check_same_thread=False)
 cursor = conn.cursor()
 
@@ -70,13 +70,18 @@ if cursor.fetchone()[0] == 0:
     cursor.executemany("INSERT OR IGNORE INTO Treinos (id_treino, nome_treino) VALUES (?, ?)", 
                        [(1, "Treino A"), (2, "Treino B"), (3, "Treino C")])
 
+    # Lista completa com os novos exercícios do Treino A atualizados
     exercicios = [
+        # Treino A (Atualizado: Supino Reto, Crucifixo Máquina, Tríceps Corda, Tríceps Francês)
         ("Supino Reto", "Halteres / Barra", "Peito"),
-        ("Supino Inclinado", "Halteres", "Peito"),
+        ("Crucifixo Máquina", "Máquina", "Peito"),
         ("Tríceps Corda", "Polia", "Braços"),
+        ("Tríceps Francês", "Halter / Polia", "Braços"),
+        # Treino B
         ("Puxada Alta", "Polia", "Costas"),
         ("Remada Baixa", "Polia", "Costas"),
         ("Rosca Direta", "Halteres", "Braços"),
+        # Treino C
         ("Leg Press 45º", "Máquina", "Pernas"),
         ("Cadeira Extensora", "Máquina", "Pernas"),
         ("Cadeira Flexora", "Máquina", "Pernas"),
@@ -85,16 +90,18 @@ if cursor.fetchone()[0] == 0:
     ]
     cursor.executemany("INSERT OR IGNORE INTO Exercicios (nome, equipamento, zona_academia) VALUES (?, ?, ?)", exercicios)
 
-    # Associações A, B e C
-    rel_a = [(1, 1, 1), (1, 2, 2), (1, 3, 3)]
-    cursor.executemany("INSERT OR IGNORE INTO Treino_Exercicios (id_treino, id_exercicio, ordem_execucao) VALUES (?, ?, ?)", rel_a)
+    # Associações dos Exercícios aos Treinos (A, B e C atualizados)
+    rel_treinos = [
+        # Treino A (IDs 1, 2, 3, 4)
+        (1, 1, 1), (1, 2, 2), (1, 3, 3), (1, 4, 4),
+        # Treino B (IDs 5, 6, 7)
+        (2, 5, 1), (2, 6, 2), (2, 7, 3),
+        # Treino C (IDs 8, 9, 10, 11, 12)
+        (3, 8, 1), (3, 9, 2), (3, 10, 3), (3, 11, 4), (3, 12, 5)
+    ]
+    cursor.executemany("INSERT OR IGNORE INTO Treino_Exercicios (id_treino, id_exercicio, ordem_execucao) VALUES (?, ?, ?)", rel_treinos)
 
-    rel_b = [(2, 4, 1), (2, 5, 2), (2, 6, 3)]
-    cursor.executemany("INSERT OR IGNORE INTO Treino_Exercicios (id_treino, id_exercicio, ordem_execucao) VALUES (?, ?, ?)", rel_b)
-
-    rel_c = [(3, 7, 1), (3, 8, 2), (3, 9, 3), (3, 10, 4), (3, 11, 5)]
-    cursor.executemany("INSERT OR IGNORE INTO Treino_Exercicios (id_treino, id_exercicio, ordem_execucao) VALUES (?, ?, ?)", rel_c)
-
+    # Criar Metas de Séries padrão (Pirâmide Invertida) para todos
     cursor.execute("SELECT id_treino_exercicio FROM Treino_Exercicios")
     todos_tes = cursor.fetchall()
     for te in todos_tes:
@@ -120,16 +127,11 @@ try:
 except Exception:
     pass
 
-# --- BARRA LATERAL (MENU) ---
-st.sidebar.title("💪 Smart Fit - Valter")
-menu = st.sidebar.radio("Escolha a seção:", ["Treino A", "Treino B", "Treino C", "Evolução Cargas", "Evolução Corporal"])
+# --- MENU DE ABAS PRINCIPAIS ---
+abas = st.tabs(["Treino A", "Treino B", "Treino C", "Evolução Cargas", "Evolução Corporal"])
 
-# --- EXIBIÇÃO DOS TREINOS (A, B, C) ---
-if menu.startswith("Treino"):
-    mapa_ids = {"Treino A": 1, "Treino B": 2, "Treino C": 3}
-    id_treino_atual = mapa_ids.get(menu, 1)
-    
-    st.title(f"🔥 {menu}")
+def renderizar_treino(id_treino, nome_aba):
+    st.title(f"🔥 {nome_aba}")
     
     if exibir_alerta_rotacao:
         st.warning("⚠️ Atenção: Seu treino completou 60 dias! Hora de trocar a seleção de exercícios.")
@@ -143,7 +145,7 @@ if menu.startswith("Treino"):
         JOIN Exercicios e ON te.id_exercicio = e.id_exercicio 
         WHERE te.id_treino = ? 
         ORDER BY te.ordem_execucao
-    ''', (id_treino_atual,))
+    ''', (id_treino,))
     
     exercicios = cursor.fetchall()
     
@@ -156,6 +158,9 @@ if menu.startswith("Treino"):
                 st.markdown(f"### 📌 {nome_ex}")
                 st.caption(f"{zona} | {eq} | *Estratégia: Pirâmide Invertida*")
                 
+                url_youtube = f"https://www.youtube.com/results?search_query=como+fazer+{nome_ex.replace(' ', '+')}"
+                st.markdown(f"[▶️ Ver Execução no YouTube]({url_youtube})")
+                
                 cursor.execute("SELECT numero_serie, repeticoes_alvo, nota_carga FROM Metas_Series WHERE id_treino_exercicio = ? ORDER BY numero_serie", (id_te,))
                 metas = cursor.fetchall()
                 
@@ -166,18 +171,22 @@ if menu.startswith("Treino"):
                     ultima = cursor.fetchone()
                     val_antiga = float(ultima[0]) if ultima and ultima[0] > 0 else 0.0
                     
-                    col1, col2, col3 = st.columns([1, 2, 2])
+                    col1, col2, col3, col4 = st.columns([1, 1, 2, 1])
                     with col1:
                         st.write(f"**Série {num}**")
                     with col2:
-                        st.text(f"{reps}\n({nota or 'Normal'})")
+                        st.text(f"{reps} reps")
                     with col3:
-                        carga = st.number_input(f"Carga S{num} ({nome_ex})", min_value=0.0, value=val_antiga, step=1.0, key=f"c_{id_te}_{num}")
-                        feito = st.checkbox(f"Feito S{num}", key=f"f_{id_te}_{num}")
+                        carga = st.number_input(f"Carga S{num} ({nome_ex})", min_value=0.0, value=val_antiga, step=1.0, key=f"c_{id_te}_{num}_{nome_aba}")
+                    with col4:
+                        feito = st.checkbox(f"Feito S{num}", key=f"f_{id_te}_{num}_{nome_aba}")
                     
+                    if nota:
+                        st.caption(f"↳ {nota}")
+                        
                     inputs_series.append({"num": num, "carga": carga, "feito": feito})
                 
-                if st.button(f"Salvar {nome_ex}", key=f"btn_{id_te}"):
+                if st.button(f"Salvar {nome_ex}", key=f"btn_{id_te}_{nome_aba}"):
                     data_hoje = date.today().strftime("%Y-%m-%d")
                     for s in inputs_series:
                         if s["feito"] or s["carga"] > 0:
@@ -188,41 +197,17 @@ if menu.startswith("Treino"):
                 
                 st.markdown("---")
 
-# --- EVOLUÇÃO CORPORAL ---
-elif menu == "Evolução Corporal":
-    st.title("📈 Evolução Corporal")
-    st.markdown("Registe suas medidas semanais:")
-    
-    with st.form("form_corpo"):
-        col1, col2 = st.columns(2)
-        with col1:
-            peso = st.number_input("Peso (kg)", min_value=0.0, format="%.1f")
-            cintura = st.number_input("Cintura (cm)", min_value=0.0, format="%.1f")
-            braco = st.number_input("Braço (cm)", min_value=0.0, format="%.1f")
-        with col2:
-            perna = st.number_input("Perna (cm)", min_value=0.0, format="%.1f")
-            peito = st.number_input("Peito (cm)", min_value=0.0, format="%.1f")
-            barriga = st.number_input("Barriga (cm)", min_value=0.0, format="%.1f")
-            
-        submitted = st.form_submit_button("Salvar Medidas da Semana")
-        if submitted and peso > 0:
-            data_hoje = date.today().strftime("%Y-%m-%d")
-            cursor.execute("INSERT INTO Evolucao_Corporal (data_registro, peso, cintura, braco, perna, peito, barriga) VALUES (?, ?, ?, ?, ?, ?, ?)", 
-                           (data_hoje, peso, cintura, braco, perna, peito, barriga))
-            conn.commit()
-            st.success("Medidas corporais salvas com sucesso!")
-            
-    st.write("### Histórico de Medidas")
-    cursor.execute("SELECT data_registro, peso, cintura, braco, perna, peito, barriga FROM Evolucao_Corporal ORDER BY data_registro DESC")
-    registros = cursor.fetchall()
-    for reg in registros:
-        dt, p, cin, bra, per, pei, bar = reg
-        st.info(f"📅 **Data:** {dt} | **Peso:** {p}kg | **Cintura:** {cin}cm | **Braço:** {bra}cm | **Perna:** {per}cm | **Peito:** {pei or 0}cm | **Barriga:** {bar or 0}cm")
+# Preencher Abas de Treino
+with abas[0]:
+    renderizar_treino(1, "Treino A")
+with abas[1]:
+    renderizar_treino(2, "Treino B")
+with abas[2]:
+    renderizar_treino(3, "Treino C")
 
-# --- EVOLUÇÃO DE CARGAS ---
-elif menu == "Evolução Cargas":
+# --- ABA DE EVOLUÇÃO DE CARGAS ---
+with abas[3]:
     st.title("📊 Evolução de Cargas")
-    
     cursor.execute("""
         SELECT DISTINCT e.id_exercicio, e.nome 
         FROM Exercicios e 
@@ -254,3 +239,34 @@ elif menu == "Evolução Cargas":
                 datas = [d[0] for d in dados_graf]
                 cargas = [d[1] for d in dados_graf]
                 st.line_chart(dict(zip(datas, cargas)))
+
+# --- ABA DE EVOLUÇÃO CORPORAL ---
+with abas[4]:
+    st.title("📈 Evolução Corporal")
+    st.markdown("Registe suas medidas semanais:")
+    
+    with st.form("form_corpo"):
+        col1, col2 = st.columns(2)
+        with col1:
+            peso = st.number_input("Peso (kg)", min_value=0.0, format="%.1f")
+            cintura = st.number_input("Cintura (cm)", min_value=0.0, format="%.1f")
+            braco = st.number_input("Braço (cm)", min_value=0.0, format="%.1f")
+        with col2:
+            perna = st.number_input("Perna (cm)", min_value=0.0, format="%.1f")
+            peito = st.number_input("Peito (cm)", min_value=0.0, format="%.1f")
+            barriga = st.number_input("Barriga (cm)", min_value=0.0, format="%.1f")
+            
+        submitted = st.form_submit_button("Salvar Medidas da Semana")
+        if submitted and peso > 0:
+            data_hoje = date.today().strftime("%Y-%m-%d")
+            cursor.execute("INSERT INTO Evolucao_Corporal (data_registro, peso, cintura, braco, perna, peito, barriga) VALUES (?, ?, ?, ?, ?, ?, ?)", 
+                           (data_hoje, peso, cintura, braco, perna, peito, barriga))
+            conn.commit()
+            st.success("Medidas corporais salvas com sucesso!")
+            
+    st.write("### Histórico de Medidas")
+    cursor.execute("SELECT data_registro, peso, cintura, braco, perna, peito, barriga FROM Evolucao_Corporal ORDER BY data_registro DESC")
+    registros = cursor.fetchall()
+    for reg in registros:
+        dt, p, cin, bra, per, pei, bar = reg
+        st.info(f"📅 **Data:** {dt} | **Peso:** {p}kg | **Cintura:** {cin}cm | **Braço:** {bra}cm | **Perna:** {per}cm | **Peito:** {pei or 0}cm | **Barriga:** {bar or 0}cm")
